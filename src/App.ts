@@ -3,7 +3,7 @@ import { Clock, Loop, Viewport, type Lifecycle } from '~/core'
 import type { GUI } from '~/GUI'
 import { Composer } from '~/Composer'
 import { Controls } from '~/Controls'
-import { ExampleScene } from '~/scenes/ExampleScene'
+import { CarScene } from '~/scenes/CarScene.ts'
 
 export interface AppParameters {
   canvas?: HTMLCanvasElement | OffscreenCanvas
@@ -19,7 +19,7 @@ export class App implements Lifecycle {
   public loop: Loop
   public clock: Clock
   public viewport: Viewport
-  public scene: ExampleScene
+  public scene: CarScene
   public gui?: GUI
 
   public constructor({
@@ -44,7 +44,7 @@ export class App implements Lifecycle {
       resize: this.resize
     })
 
-    this.scene = new ExampleScene({
+    this.scene = new CarScene({
       viewport: this.viewport,
       camera: this.camera,
       clock: this.clock
