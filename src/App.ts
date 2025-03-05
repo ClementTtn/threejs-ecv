@@ -11,7 +11,7 @@ export interface AppParameters {
 }
 
 export class App implements Lifecycle {
-  public debug: boolean
+  public debug: boolean | undefined
   public renderer: WebGLRenderer
   public composer: Composer
   public camera: PerspectiveCamera
@@ -90,7 +90,7 @@ export class App implements Lifecycle {
     this.viewport.start()
     this.clock.start()
     this.loop.start()
-    this.controls.start()
+    // this.controls.start()
     this.gui?.start()
   }
 
@@ -98,7 +98,7 @@ export class App implements Lifecycle {
    * Stop the app rendering loop
    */
   public stop(): void {
-    this.controls.stop()
+    // this.controls.stop()
     this.viewport.stop()
     this.loop.stop()
   }
@@ -108,7 +108,7 @@ export class App implements Lifecycle {
    */
   public update(): void {
     this.clock.update()
-    this.controls.update()
+    // this.controls.update()
     this.viewport.update()
     this.scene.update()
     this.composer.update()
@@ -125,7 +125,7 @@ export class App implements Lifecycle {
    * Stop the app and dispose of used resourcess
    */
   public dispose(): void {
-    this.controls.dispose()
+    // this.controls.dispose()
     this.viewport.dispose()
     this.loop.dispose()
     this.scene.dispose()

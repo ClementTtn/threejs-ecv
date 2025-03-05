@@ -1,17 +1,8 @@
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js'
 
-import {
-    Scene,
-    PointLight,
-    PerspectiveCamera,
-    Color,
-} from 'three'
+import {Color, PerspectiveCamera, PointLight, Scene,} from 'three'
 
-import type {
-    Viewport,
-    Clock,
-    Lifecycle
-} from '~/core'
+import type {Clock, Lifecycle, Viewport} from '~/core'
 
 export interface MainSceneParamaters {
     clock: Clock
@@ -27,6 +18,11 @@ export class CarScene extends Scene implements Lifecycle {
     public light1: PointLight
     public light2: PointLight
     public light3: PointLight
+    private initialCameraZ = 2.8
+    private initialCameraY = 0.1
+    private maxElevation = 3
+    private maxScrollDistance = 7
+    private currentScroll = 0
 
     public constructor({ clock, camera, viewport }: MainSceneParamaters) {
         super()
@@ -38,20 +34,30 @@ export class CarScene extends Scene implements Lifecycle {
         this.light1 = new PointLight(0xffffff, 100, 0, 2)
         this.light1.position.set(0, 5, 0)
 
-        /*
-        this.light2 = new PointLight(0xffffff, 100, 5, 0.5)
-        this.light2.position.set(0, 3, 2)
-
-        this.light3 = new PointLight(0xffffff, 100, 5, 2)
-        this.light3.position.set(0, 0, 0)
-         */
-
         this.add(
             this.light1,
             this.light2,
             this.light3,
         )
+
+        this.setInitialCameraPosition()
         this.load()
+        window.addEventListener('wheel', this.onWheel.bind(this))
+    }
+
+    private setInitialCameraPosition(): void {
+        this.camera.position.set(0, this.initialCameraY, this.initialCameraZ)
+        this.camera.lookAt(0, 1, 0)
+    }
+
+    private onWheel(event: WheelEvent): void {
+        this.currentScroll += event.deltaY * 0.01
+        this.currentScroll = Math.max(0, Math.min(this.currentScroll, this.maxScrollDistance))
+
+        const newCameraY = this.initialCameraY + (this.currentScroll / this.maxScrollDistance) * this.maxElevation
+        const newCameraZ = this.initialCameraZ + this.currentScroll
+        this.camera.position.set(0, newCameraY, newCameraZ)
+        this.camera.lookAt(0, 1, 0)
     }
 
     public async load(): Promise<void> {
@@ -84,5 +90,9 @@ export class CarScene extends Scene implements Lifecycle {
     public resize(): void {
         this.camera.aspect = this.viewport.ratio
         this.camera.updateProjectionMatrix()
+    }
+
+    public dispose() {
+        window.removeEventListener('wheel', this.onWheel.bind(this))
     }
 }
