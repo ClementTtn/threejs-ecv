@@ -1,23 +1,21 @@
 import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js'
 
-import {Color, PerspectiveCamera, PointLight, Scene,} from 'three'
+import * as THREE from 'three'
 
 import type {Clock, Lifecycle, Viewport} from '~/core'
 
 export interface MainSceneParamaters {
     clock: Clock
-    camera: PerspectiveCamera
+    camera: THREE.PerspectiveCamera
     viewport: Viewport
 }
 
-export class CarScene extends Scene implements Lifecycle {
+export class CarScene extends THREE.Scene implements Lifecycle {
     private model: THREE.Group | null = null
     public clock: Clock
-    public camera: PerspectiveCamera
+    public camera: THREE.PerspectiveCamera
     public viewport: Viewport
-    public light1: PointLight
-    public light2: PointLight
-    public light3: PointLight
+    public light1: THREE.PointLight
     private initialCameraZ = 2.8
     private initialCameraY = 0.1
     private maxElevation = 3
@@ -29,15 +27,13 @@ export class CarScene extends Scene implements Lifecycle {
         this.clock = clock
         this.camera = camera
         this.viewport = viewport
-        this.background = new Color(0x0f0f0f)
+        this.background = new THREE.Color(0x0f0f0f)
 
-        this.light1 = new PointLight(0xffffff, 100, 0, 2)
+        this.light1 = new THREE.PointLight(0xffffff, 100, 0, 2)
         this.light1.position.set(0, 5, 0)
 
         this.add(
-            this.light1,
-            this.light2,
-            this.light3,
+            this.light1
         )
 
         this.setInitialCameraPosition()
