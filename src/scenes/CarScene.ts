@@ -1,5 +1,6 @@
 import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js'
+import { Title } from '../../components/Title'
 import * as THREE from 'three'
 import type {Clock, Lifecycle, Viewport} from '~/core'
 
@@ -12,6 +13,7 @@ export interface MainSceneParamaters {
 
 export class CarScene extends THREE.Scene implements Lifecycle {
     private model: THREE.Group | null = null
+    private title: Title
     public clock: Clock
     public camera: THREE.PerspectiveCamera
     public viewport: Viewport
@@ -33,15 +35,13 @@ export class CarScene extends THREE.Scene implements Lifecycle {
 
         this.light1 = new THREE.PointLight(0xffffff, 100, 0, 2)
         this.light1.position.set(0, 5, 0)
-
-        this.add(
-            this.light1
-        )
+        this.add(this.light1)
 
         this.setInitialCameraPosition()
         this.load()
         window.addEventListener('wheel', this.onWheel.bind(this))
         this.setupEnvMap()
+        this.title = new Title()
     }
 
     private setInitialCameraPosition(): void {
@@ -73,6 +73,12 @@ export class CarScene extends THREE.Scene implements Lifecycle {
         const newCameraZ = this.initialCameraZ + this.currentScroll
         this.camera.position.set(0, newCameraY, newCameraZ)
         this.camera.lookAt(0, 1, 0)
+
+        if (this.currentScroll >= this.maxScrollDistance) {
+            this.title.show()
+        } else {
+            this.title.hide()
+        }
     }
 
     public async load(): Promise<void> {
@@ -89,16 +95,7 @@ export class CarScene extends THREE.Scene implements Lifecycle {
             })
     }
 
-    public update(): void {
-        /*
-        const theta = Math.atan2(this.camera.position.x, this.camera.position.z)
-
-        this.light1.position.x = Math.cos(theta + this.clock.elapsed * 0.001) * 2
-        this.light1.position.z = Math.sin(theta + this.clock.elapsed * 0.0005) * 2
-        this.light2.position.y = Math.sin(theta + this.clock.elapsed * 0.001) * 4
-        this.light2.position.z = Math.cos(theta + this.clock.elapsed * 0.0005) * 2
-        */
-    }
+    public update(): void {}
 
     public resize(): void {
         this.camera.aspect = this.viewport.ratio
