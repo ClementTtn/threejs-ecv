@@ -1,13 +1,13 @@
 import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js'
-
+import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js'
 import * as THREE from 'three'
-
 import type {Clock, Lifecycle, Viewport} from '~/core'
 
 export interface MainSceneParamaters {
     clock: Clock
     camera: THREE.PerspectiveCamera
     viewport: Viewport
+    renderer: THREE.WebGLRenderer
 }
 
 export class CarScene extends THREE.Scene implements Lifecycle {
@@ -16,18 +16,20 @@ export class CarScene extends THREE.Scene implements Lifecycle {
     public camera: THREE.PerspectiveCamera
     public viewport: Viewport
     public light1: THREE.PointLight
+    public renderer: THREE.WebGLRenderer
+
     private initialCameraZ = 2.8
     private initialCameraY = 0.1
     private maxElevation = 3
     private maxScrollDistance = 7
     private currentScroll = 0
 
-    public constructor({ clock, camera, viewport }: MainSceneParamaters) {
+    public constructor({ clock, camera, viewport, renderer }: MainSceneParamaters) {
         super()
         this.clock = clock
         this.camera = camera
         this.viewport = viewport
-        this.background = new THREE.Color(0x0f0f0f)
+        this.renderer = renderer
 
         this.light1 = new THREE.PointLight(0xffffff, 100, 0, 2)
         this.light1.position.set(0, 5, 0)
@@ -39,11 +41,28 @@ export class CarScene extends THREE.Scene implements Lifecycle {
         this.setInitialCameraPosition()
         this.load()
         window.addEventListener('wheel', this.onWheel.bind(this))
+        this.setupEnvMap()
     }
 
     private setInitialCameraPosition(): void {
         this.camera.position.set(0, this.initialCameraY, this.initialCameraZ)
-        this.camera.lookAt(0, 1, 0)
+        this.camera.lookAt(0, 0.1, 0)
+    }
+
+    private setupEnvMap(): void {
+        const rgbeLoader = new RGBELoader()
+        rgbeLoader.load('assets/studio.hdr', (texture) => {
+            const pmremGenerator = new THREE.PMREMGenerator(this.renderer)
+            pmremGenerator.compileEquirectangularShader()
+
+            const envMap = pmremGenerator.fromEquirectangular(texture).texture
+            this.environment = envMap
+            this.background = envMap
+        },
+        undefined,
+        (error) => {
+            console.error('Erreur lors du chargement de la texture HDR', error)
+        })
     }
 
     private onWheel(event: WheelEvent): void {
@@ -64,9 +83,7 @@ export class CarScene extends THREE.Scene implements Lifecycle {
                 this.model = gltf.scene
                 this.add(this.model)
             },
-            (xhr) => {
-                console.log((xhr.loaded / xhr.total * 100) + '% loaded')
-            },
+            (xhr) => {},
             (error) => {
                 console.error('Erreur lors du chargement du modèle', error)
             })

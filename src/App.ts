@@ -47,7 +47,8 @@ export class App implements Lifecycle {
     this.scene = new CarScene({
       viewport: this.viewport,
       camera: this.camera,
-      clock: this.clock
+      clock: this.clock,
+      renderer: this.renderer
     })
 
     this.composer = new Composer({
