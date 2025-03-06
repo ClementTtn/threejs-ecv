@@ -15,6 +15,7 @@ export class CarScene extends THREE.Scene implements Lifecycle {
     private model: THREE.Group
     private title: HTMLDivElement
     private discoverButton: HTMLAnchorElement
+    private infoButtons: HTMLButtonElement[] = []
     public clock: Clock
     public camera: THREE.PerspectiveCamera
     public viewport: Viewport
@@ -46,6 +47,7 @@ export class CarScene extends THREE.Scene implements Lifecycle {
         window.addEventListener('wheel', this.boundOnWheel)
         this.setupEnvMap()
         this.createTitle()
+        this.createInfoButtons()
     }
 
     private setInitialCameraPosition(): void {
@@ -141,6 +143,27 @@ export class CarScene extends THREE.Scene implements Lifecycle {
         this.discoverButton = discoverButton
     }
 
+    private createInfoButtons(): void {
+        const infoPositions = [
+            { top: '32%', left: '35%', info: 'Moteur puissant' },
+            { top: '48%', left: '33%', info: 'Technologie avancée' },
+        ]
+
+        infoPositions.forEach((pos, index) => {
+            const button = document.createElement('button')
+            button.className = 'info-button'
+            button.style.top = pos.top
+            button.style.left = pos.left
+            button.style.transform = 'translate(-50%, -50%)'
+            button.innerText = ''
+            button.addEventListener('click', () => {
+                alert(pos.info)
+            })
+            document.body.appendChild(button)
+            this.infoButtons.push(button)
+        })
+    }
+
     private moveCameraToLeftSide(): void {
         if (this.model) {
             this.hideTitle()
@@ -150,6 +173,9 @@ export class CarScene extends THREE.Scene implements Lifecycle {
                 .easing(Easing.Quadratic.Out)
                 .onUpdate(() => {
                     this.camera.lookAt(this.model.position)
+                })
+                .onComplete(() => {
+                    this.showButtons()
                 })
                 .start()
         }
@@ -169,6 +195,13 @@ export class CarScene extends THREE.Scene implements Lifecycle {
         this.discoverButton.style.cursor = 'default'
         this.title.style.opacity = '0'
         this.discoverButton.style.opacity = '0'
+    }
+
+    private showButtons(): void {
+        this.infoButtons.forEach((button, index) => {
+            button.style.opacity = '1'
+            button.style.opacity = '1'
+        })
     }
 
     public update(): void {
