@@ -3,6 +3,8 @@ import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js'
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js'
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js'
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js'
+import { SSAOPass } from 'three/examples/jsm/postprocessing/SSAOPass.js'
+import { FXAAShader } from 'three/examples/jsm/shaders/FXAAShader.js'
 import * as THREE from 'three'
 import { Tween, Easing } from '@tweenjs/tween.js'
 import type { Clock, Lifecycle, Viewport } from '~/core'
@@ -22,7 +24,6 @@ export class CarScene extends THREE.Scene implements Lifecycle {
     private title: HTMLDivElement
     private discoverButton: HTMLAnchorElement
     private infoButtons: HTMLButtonElement[] = []
-    private backButton: HTMLButtonElement[] = []
     public clock: Clock
     public camera: THREE.PerspectiveCamera
     public viewport: Viewport
@@ -73,6 +74,16 @@ export class CarScene extends THREE.Scene implements Lifecycle {
         })
         this.blurPass.renderToScreen = true
         this.composer.addPass(this.blurPass)
+        
+        const fxaaPass = new ShaderPass(FXAAShader)
+        fxaaPass.uniforms['resolution'].value.set(1 / window.innerWidth, 1 / window.innerHeight)
+        this.composer.addPass(fxaaPass)
+
+        const ssaoPass = new SSAOPass(this, this.camera, window.innerWidth, window.innerHeight)
+        ssaoPass.kernelRadius = 8
+        ssaoPass.minDistance = 0.005
+        ssaoPass.maxDistance = 0.1
+        this.composer.addPass(ssaoPass)
     }
 
     private setInitialCameraPosition(): void {
@@ -170,9 +181,9 @@ export class CarScene extends THREE.Scene implements Lifecycle {
 
     private createInfoButtons(): void {
         const infoPositions = [
-            { top: '32%', left: '35%', info: 'Gros moteur', zoomPosition: { x: 0, y: 1, z: 8 } },
-            { top: '48%', left: '33%', info: 'Gros freins', zoomPosition: { x: 3, y: 1, z: 2.5 } },
-            { top: '30%', left: '70%', info: 'Grand coffre', zoomPosition: { x: 0, y: 2, z: -8 } },
+            { top: '32%', left: '35%', info: 'Un gros moteur', zoomPosition: { x: 0, y: 1, z: 8 } },
+            { top: '48%', left: '33%', info: 'Des gros freins', zoomPosition: { x: 3, y: 1, z: 2.5 } },
+            { top: '30%', left: '70%', info: 'Un grand coffre', zoomPosition: { x: 0, y: 2, z: -8 } },
         ]
 
         infoPositions.forEach((pos, index) => {
@@ -183,7 +194,7 @@ export class CarScene extends THREE.Scene implements Lifecycle {
             button.style.transform = 'translate(-50%, -50%)'
             button.innerText = ''
             button.addEventListener('click', () => {
-                this.zoomCameraToPosition(pos.zoomPosition)
+                this.zoomCameraToPosition(pos.info, pos.zoomPosition)
             })
             document.body.appendChild(button)
             this.infoButtons.push(button)
@@ -207,7 +218,7 @@ export class CarScene extends THREE.Scene implements Lifecycle {
         }
     }
 
-    private zoomCameraToPosition(zoomPosition: { x: number, y: number, z: number }): void {
+    private zoomCameraToPosition(info: string, zoomPosition: { x: number, y: number, z: number }): void {
         if (this.model) {
             const initialCameraPosition = { ...this.camera.position }
             this.cameraTween = new Tween(this.camera.position)
@@ -217,10 +228,10 @@ export class CarScene extends THREE.Scene implements Lifecycle {
                     this.camera.lookAt(this.model.position)
                 })
                 .onStart(() => {
-                    this.blurPass.uniforms.h.value = 0.005
-
                     this.hideButtons()
-
+                })
+                .onComplete(() => {
+                    this.blurPass.uniforms.h.value = 0.005
                     const backButton = document.createElement('button')
                     backButton.className = 'back-button'
                     backButton.style.position = 'absolute'
@@ -233,6 +244,8 @@ export class CarScene extends THREE.Scene implements Lifecycle {
                     backButton.style.cursor = 'pointer'
                     backButton.innerText = '←'
                     backButton.addEventListener('click', () => {
+                        document.body.removeChild(backButton)
+                        document.body.removeChild(text)
                         this.cameraTween = new Tween(this.camera.position)
                             .to(initialCameraPosition, 2000)
                             .easing(Easing.Quadratic.Out)
@@ -241,11 +254,23 @@ export class CarScene extends THREE.Scene implements Lifecycle {
                             })
                             .onComplete(() => {
                                 this.showButtons()
-                                document.body.removeChild(backButton)
                             })
                             .start()
                     })
                     document.body.appendChild(backButton)
+
+                    const text = document.createElement('div')
+                    text.className = 'info-text'
+                    text.style.position = 'absolute'
+                    text.style.bottom = '20px'
+                    text.style.right = '20px'
+                    text.style.padding = '10px'
+                    text.style.borderRadius = '5px'
+                    text.style.color = 'black'
+                    text.style.fontSize = '24px'
+                    text.style.fontFamily = "'Roboto', sans-serif"
+                    text.innerText = info
+                    document.body.appendChild(text)
                 })
                 .start()
         }
