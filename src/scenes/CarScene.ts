@@ -37,6 +37,7 @@ export class CarScene extends THREE.Scene implements Lifecycle {
     private composer: EffectComposer
     private renderPass: RenderPass
     private blurPass: ShaderPass | null
+    private baseUrl = 'https://clementttn.github.io'
 
     public constructor({ clock, camera, viewport, renderer }: MainSceneParamaters) {
         super()
@@ -68,8 +69,8 @@ export class CarScene extends THREE.Scene implements Lifecycle {
 
     private async loadShaders() {
         const [blurVertexShader, blurFragmentShader] = await Promise.all([
-            fetch('../shaders/blur.vert').then(r => r.text()),
-            fetch('../shaders/blur.frag').then(r => r.text())
+            fetch(this.baseUrl + '/src/shaders/blur.vert').then(r => r.text()),
+            fetch(this.baseUrl + '/src/shaders/blur.frag').then(r => r.text())
         ])
 
         this.blurPass = new ShaderPass({
@@ -101,7 +102,7 @@ export class CarScene extends THREE.Scene implements Lifecycle {
 
     private setupEnvMap(): void {
         const rgbeLoader = new RGBELoader()
-        rgbeLoader.load('assets/studio.hdr', (texture) => {
+        rgbeLoader.load(this.baseUrl + '/assets/studio.hdr', (texture) => {
                 const pmremGenerator = new THREE.PMREMGenerator(this.renderer)
                 pmremGenerator.compileEquirectangularShader()
 
@@ -133,7 +134,7 @@ export class CarScene extends THREE.Scene implements Lifecycle {
 
     public async load(): Promise<void> {
         const loader = new GLTFLoader()
-        const modelPath = 'assets/models/bmw.glb'
+        const modelPath = this.baseUrl + '/assets/models/bmw.glb'
 
         loader.load(modelPath, (gltf) => {
                 this.model = gltf.scene
