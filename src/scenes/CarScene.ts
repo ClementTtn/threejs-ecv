@@ -9,9 +9,6 @@ import * as THREE from 'three'
 import { Tween, Easing } from '@tweenjs/tween.js'
 import type { Clock, Lifecycle, Viewport } from '~/core'
 
-const blurVertexShader = await fetch('../shaders/blur.vert').then(r => r.text())
-const blurFragmentShader = await fetch('../shaders/blur.frag').then(r => r.text())
-
 export interface MainSceneParamaters {
     clock: Clock
     camera: THREE.PerspectiveCamera
@@ -20,16 +17,16 @@ export interface MainSceneParamaters {
 }
 
 export class CarScene extends THREE.Scene implements Lifecycle {
-    private model: THREE.Group
-    private title: HTMLDivElement
-    private discoverButton: HTMLAnchorElement
+    private model: THREE.Group = new THREE.Group()
+    private title: HTMLDivElement = document.createElement('div')
+    private discoverButton: HTMLAnchorElement = document.createElement('a')
     private infoButtons: HTMLButtonElement[] = []
     public clock: Clock
     public camera: THREE.PerspectiveCamera
     public viewport: Viewport
     public light1: THREE.PointLight
     public renderer: THREE.WebGLRenderer
-    private cameraTween: Tween<{ x: number, y: number, z: number }>
+    private cameraTween: Tween<{ x: number, y: number, z: number }> | null = null
 
     private initialCameraZ = 2.8
     private initialCameraY = 0.1
@@ -39,7 +36,7 @@ export class CarScene extends THREE.Scene implements Lifecycle {
     private boundOnWheel: (event: WheelEvent) => void
     private composer: EffectComposer
     private renderPass: RenderPass
-    private blurPass: ShaderPass
+    private blurPass: ShaderPass | null
 
     public constructor({ clock, camera, viewport, renderer }: MainSceneParamaters) {
         super()
@@ -47,22 +44,33 @@ export class CarScene extends THREE.Scene implements Lifecycle {
         this.camera = camera
         this.viewport = viewport
         this.renderer = renderer
+        this.blurPass = null
 
         this.light1 = new THREE.PointLight(0xffffff, 100, 0, 2)
         this.light1.position.set(0, 5, 0)
         this.add(this.light1)
 
         this.setInitialCameraPosition()
-        this.load()
+        this.loadShaders().then(() => {
+            this.load()
+            this.setupEnvMap()
+            this.createTitle()
+            this.createInfoButtons()
+        })
+
         this.boundOnWheel = this.onWheel.bind(this)
         window.addEventListener('wheel', this.boundOnWheel)
-        this.setupEnvMap()
-        this.createTitle()
-        this.createInfoButtons()
 
         this.composer = new EffectComposer(renderer)
         this.renderPass = new RenderPass(this, this.camera)
         this.composer.addPass(this.renderPass)
+    }
+
+    private async loadShaders() {
+        const [blurVertexShader, blurFragmentShader] = await Promise.all([
+            fetch('../shaders/blur.vert').then(r => r.text()),
+            fetch('../shaders/blur.frag').then(r => r.text())
+        ])
 
         this.blurPass = new ShaderPass({
             uniforms: {
@@ -74,7 +82,7 @@ export class CarScene extends THREE.Scene implements Lifecycle {
         })
         this.blurPass.renderToScreen = true
         this.composer.addPass(this.blurPass)
-        
+
         const fxaaPass = new ShaderPass(FXAAShader)
         fxaaPass.uniforms['resolution'].value.set(1 / window.innerWidth, 1 / window.innerHeight)
         this.composer.addPass(fxaaPass)
@@ -123,7 +131,7 @@ export class CarScene extends THREE.Scene implements Lifecycle {
         }
     }
 
-    public load(): void {
+    public async load(): Promise<void> {
         const loader = new GLTFLoader()
         const modelPath = 'assets/models/bmw.glb'
 
@@ -131,14 +139,14 @@ export class CarScene extends THREE.Scene implements Lifecycle {
                 this.model = gltf.scene
                 this.add(this.model)
             },
-            (xhr) => {},
+            undefined,
             (error) => {
                 console.error('Erreur lors du chargement du modèle', error)
             })
     }
 
     private createTitle(): void {
-        const title = document.createElement('div')
+        const title = this.title
         title.style.position = 'absolute'
         title.style.top = '100px'
         title.style.left = '50%'
@@ -151,9 +159,8 @@ export class CarScene extends THREE.Scene implements Lifecycle {
         title.style.transition = 'opacity 0.5s ease-in-out'
         title.innerText = 'BMW M5 Touring'
         document.body.appendChild(title)
-        this.title = title
 
-        const discoverButton = document.createElement('a')
+        const discoverButton = this.discoverButton
         discoverButton.style.position = 'absolute'
         discoverButton.style.top = '150px'
         discoverButton.style.left = '50%'
@@ -176,7 +183,6 @@ export class CarScene extends THREE.Scene implements Lifecycle {
             this.removeWheelListener()
         })
         document.body.appendChild(discoverButton)
-        this.discoverButton = discoverButton
     }
 
     private createInfoButtons(): void {
@@ -186,7 +192,7 @@ export class CarScene extends THREE.Scene implements Lifecycle {
             { top: '30%', left: '70%', info: 'Un grand coffre', zoomPosition: { x: 0, y: 2, z: -8 } },
         ]
 
-        infoPositions.forEach((pos, index) => {
+        infoPositions.forEach((pos) => {
             const button = document.createElement('button')
             button.className = 'info-button'
             button.style.top = pos.top
@@ -231,7 +237,9 @@ export class CarScene extends THREE.Scene implements Lifecycle {
                     this.hideButtons()
                 })
                 .onComplete(() => {
-                    this.blurPass.uniforms.h.value = 0.005
+                    if (this.blurPass instanceof ShaderPass) {
+                        this.blurPass.uniforms.h.value = 0.005
+                    }
                     const backButton = document.createElement('button')
                     backButton.className = 'back-button'
                     backButton.style.position = 'absolute'
@@ -293,14 +301,14 @@ export class CarScene extends THREE.Scene implements Lifecycle {
     }
 
     private showButtons(): void {
-        this.infoButtons.forEach((button, index) => {
+        this.infoButtons.forEach((button) => {
             button.style.cursor = 'pointer'
             button.style.opacity = '1'
         })
     }
 
     private hideButtons(): void {
-        this.infoButtons.forEach((button, index) => {
+        this.infoButtons.forEach((button) => {
             button.style.cursor = 'default'
             button.style.opacity = '0'
         })
