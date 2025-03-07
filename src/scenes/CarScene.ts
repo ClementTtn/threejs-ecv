@@ -1,8 +1,14 @@
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js'
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js'
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js'
+import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js'
 import * as THREE from 'three'
 import { Tween, Easing } from '@tweenjs/tween.js'
 import type { Clock, Lifecycle, Viewport } from '~/core'
+
+const blurVertexShader = await fetch('../shaders/blur.vert').then(r => r.text())
+const blurFragmentShader = await fetch('../shaders/blur.frag').then(r => r.text())
 
 export interface MainSceneParamaters {
     clock: Clock
@@ -16,6 +22,7 @@ export class CarScene extends THREE.Scene implements Lifecycle {
     private title: HTMLDivElement
     private discoverButton: HTMLAnchorElement
     private infoButtons: HTMLButtonElement[] = []
+    private backButton: HTMLButtonElement[] = []
     public clock: Clock
     public camera: THREE.PerspectiveCamera
     public viewport: Viewport
@@ -29,6 +36,9 @@ export class CarScene extends THREE.Scene implements Lifecycle {
     private maxScrollDistance = 7
     private currentScroll = 0
     private boundOnWheel: (event: WheelEvent) => void
+    private composer: EffectComposer
+    private renderPass: RenderPass
+    private blurPass: ShaderPass
 
     public constructor({ clock, camera, viewport, renderer }: MainSceneParamaters) {
         super()
@@ -48,6 +58,21 @@ export class CarScene extends THREE.Scene implements Lifecycle {
         this.setupEnvMap()
         this.createTitle()
         this.createInfoButtons()
+
+        this.composer = new EffectComposer(renderer)
+        this.renderPass = new RenderPass(this, this.camera)
+        this.composer.addPass(this.renderPass)
+
+        this.blurPass = new ShaderPass({
+            uniforms: {
+                tDiffuse: { value: null },
+                h: { value: 0.005 }
+            },
+            vertexShader: blurVertexShader,
+            fragmentShader: blurFragmentShader
+        })
+        this.blurPass.renderToScreen = true
+        this.composer.addPass(this.blurPass)
     }
 
     private setInitialCameraPosition(): void {
@@ -145,8 +170,9 @@ export class CarScene extends THREE.Scene implements Lifecycle {
 
     private createInfoButtons(): void {
         const infoPositions = [
-            { top: '32%', left: '35%', info: 'Moteur puissant' },
-            { top: '48%', left: '33%', info: 'Technologie avancée' },
+            { top: '32%', left: '35%', info: 'Gros moteur', zoomPosition: { x: 0, y: 1, z: 8 } },
+            { top: '48%', left: '33%', info: 'Gros freins', zoomPosition: { x: 3, y: 1, z: 2.5 } },
+            { top: '30%', left: '70%', info: 'Grand coffre', zoomPosition: { x: 0, y: 2, z: -8 } },
         ]
 
         infoPositions.forEach((pos, index) => {
@@ -157,7 +183,7 @@ export class CarScene extends THREE.Scene implements Lifecycle {
             button.style.transform = 'translate(-50%, -50%)'
             button.innerText = ''
             button.addEventListener('click', () => {
-                alert(pos.info)
+                this.zoomCameraToPosition(pos.zoomPosition)
             })
             document.body.appendChild(button)
             this.infoButtons.push(button)
@@ -181,6 +207,50 @@ export class CarScene extends THREE.Scene implements Lifecycle {
         }
     }
 
+    private zoomCameraToPosition(zoomPosition: { x: number, y: number, z: number }): void {
+        if (this.model) {
+            const initialCameraPosition = { ...this.camera.position }
+            this.cameraTween = new Tween(this.camera.position)
+                .to(zoomPosition, 2000)
+                .easing(Easing.Quadratic.Out)
+                .onUpdate(() => {
+                    this.camera.lookAt(this.model.position)
+                })
+                .onStart(() => {
+                    this.blurPass.uniforms.h.value = 0.005
+
+                    this.hideButtons()
+
+                    const backButton = document.createElement('button')
+                    backButton.className = 'back-button'
+                    backButton.style.position = 'absolute'
+                    backButton.style.top = '10px'
+                    backButton.style.left = '10px'
+                    backButton.style.padding = '10px'
+                    backButton.style.backgroundColor = 'rgba(255, 255, 255, 0.8)'
+                    backButton.style.border = '1px solid black'
+                    backButton.style.borderRadius = '5px'
+                    backButton.style.cursor = 'pointer'
+                    backButton.innerText = '←'
+                    backButton.addEventListener('click', () => {
+                        this.cameraTween = new Tween(this.camera.position)
+                            .to(initialCameraPosition, 2000)
+                            .easing(Easing.Quadratic.Out)
+                            .onUpdate(() => {
+                                this.camera.lookAt(this.model.position)
+                            })
+                            .onComplete(() => {
+                                this.showButtons()
+                                document.body.removeChild(backButton)
+                            })
+                            .start()
+                    })
+                    document.body.appendChild(backButton)
+                })
+                .start()
+        }
+    }
+
     private removeWheelListener(): void {
         window.removeEventListener('wheel', this.boundOnWheel)
     }
@@ -199,12 +269,20 @@ export class CarScene extends THREE.Scene implements Lifecycle {
 
     private showButtons(): void {
         this.infoButtons.forEach((button, index) => {
-            button.style.opacity = '1'
+            button.style.cursor = 'pointer'
             button.style.opacity = '1'
         })
     }
 
+    private hideButtons(): void {
+        this.infoButtons.forEach((button, index) => {
+            button.style.cursor = 'default'
+            button.style.opacity = '0'
+        })
+    }
+
     public update(): void {
+        this.composer?.render()
         this.cameraTween?.update()
     }
 
