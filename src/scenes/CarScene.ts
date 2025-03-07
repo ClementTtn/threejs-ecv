@@ -37,7 +37,9 @@ export class CarScene extends THREE.Scene implements Lifecycle {
     private composer: EffectComposer
     private renderPass: RenderPass
     private blurPass: ShaderPass | null
-    private baseUrl = 'https://clementttn.github.io'
+    // private baseUrl = 'http://localhost:5173'
+    private baseUrl = 'https://threejs-ecv.vercel.app/'
+    // private baseUrl = 'https://clementttn.github.io'
 
     public constructor({ clock, camera, viewport, renderer }: MainSceneParamaters) {
         super()
